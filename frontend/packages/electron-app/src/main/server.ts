@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process'
+import { exec, spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { to } from 'await-to-js'
@@ -63,14 +63,10 @@ export async function startServer() {
   logger.info('正在启动服务')
   sendToRender('正在启动服务', 90)
 
-  const rpaSetup = exec(
-    `"${pythonExe}" -m ${envJson.SCHEDULER_NAME} --conf="${confPath}"`,
-    { cwd: appWorkPath },
-    (error) => {
-      if (error) {
-        logger.error(`${envJson.SCHEDULER_NAME} error: ${error}`)
-      }
-    }
+  const rpaSetup = spawn(
+    pythonExe,
+    ['-m', envJson.SCHEDULER_NAME, `--conf=${confPath}`],
+    { cwd: appWorkPath }
   )
 
   rpaSetup.stdout?.on('data', (data) => msgFilter(data.toString()))

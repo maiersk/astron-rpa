@@ -40,9 +40,13 @@
     "build:tokens": "node tokens/build-tokens.js",
     "postinstall": "npm run build && npm run build:tokens"
   },
+  "peerDependencies": {
+    "lodash-es": "catalog:",
+    "ant-design-vue": "catalog:"
+  },
   "devDependencies": {
     "style-dictionary": "^4.4.0",
-    "tsdown": "^0.19.0-beta.2"
+    "tsdown": "catalog:"
   },
   "dependencies": {
     "@ctrl/tinycolor": "^4.1.0"

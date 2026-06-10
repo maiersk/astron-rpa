@@ -32,7 +32,6 @@
     "@ant-design/colors": "^7.2.1",
     "@guolao/vue-monaco-editor": "^1.5.4",
     "@progress/jszip-esm": "^1.0.4",
-    "@rpa/components": "file:",
     "@rpa/shared": "workspace:*",
     "@tiptap/extension-gapcursor": "^2.7.2",
     "@tiptap/extension-image": "^2.7.2",
@@ -51,8 +50,9 @@
     "@univerjs/presets": "^0.15.0",
     "@vueuse/core": "^11.0.1",
     "@zwight/exceljs": "^4.4.2",
+    "crypto-js": "^4.2.0",
     "dayjs": "^1.11.19",
-    "lodash-es": "^4.17.21",
+    "lodash-es": "catalog:",
     "monaco-editor": "^0.52.2",
     "nanoid": "^5.1.6",
     "papaparse": "^5.5.3",
@@ -60,6 +60,7 @@
     "react-dom": "18.3.1",
     "tailwind-merge": "^3.4.0",
     "vscode-languageserver-types": "^3.17.5",
+    "vue-router": "catalog:",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
