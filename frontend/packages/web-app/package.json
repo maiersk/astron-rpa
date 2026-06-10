@@ -24,6 +24,7 @@
     "@rpa/shared": "workspace:*",
     "@sentry/vite-plugin": "^3.5.0",
     "@sentry/vue": "^9.22.0",
+    "@tiptap/core": "^2.7.4",
     "@tiptap/pm": "^2.7.4",
     "@tiptap/starter-kit": "^2.7.4",
     "@tiptap/vue-3": "^2.7.4",
