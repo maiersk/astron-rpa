@@ -63,6 +63,7 @@ export interface DirectoryItem {
   attrs?: DirectoryAttrItem[]
   name?: string
   disable_keys?: string[]
+  match_modes?: Record<string, string> // 每个属性的匹配模式: {"cls": "contains", "name": "regex"}
 }
 
 export interface VarDataType {

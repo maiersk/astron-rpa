@@ -66,9 +66,16 @@ function elementDirectoryFormatV1Common(
 ) {
   if (!data)
     return []
-  const ignoreKeys = ['checked', 'tag_name', 'disable_keys']
+  const ignoreKeys = ['checked', 'tag_name', 'disable_keys', 'match_modes']
   return data.map((item: DirectoryItem) => {
     const attrKeys = Object.keys(item).filter(key => !ignoreKeys.includes(key))
+    const modeToType: Record<string, number> = {
+      equals: 0,
+      contains: 1,
+      regex: 2,
+      starts_with: 3,
+      ends_with: 4,
+    }
     return {
       _version: version,
       _checkDisabled: false,
@@ -78,6 +85,7 @@ function elementDirectoryFormatV1Common(
       checked: item.checked !== false,
       value: item.tag_name,
       attrs: attrKeys.map((key, index) => {
+        const matchMode = (item.match_modes || {})[key] || 'equals'
         const attr = {
           _checkDisabled: false,
           _addDisabled: false,
@@ -86,7 +94,7 @@ function elementDirectoryFormatV1Common(
           _nameDisabled: false,
           _typesPattern: typesPattern(typesPatternType, key),
           value: item[key],
-          type: 0,
+          type: modeToType[matchMode] || 0,
           name: key,
           checked: item.disable_keys ? !item.disable_keys.includes(key) : true,
           variableValue: null,
@@ -109,6 +117,14 @@ function elementDirectoryFormatV1RecoverCommon(data: any) {
       checked: item.checked,
       disable_keys: [],
     }
+    const matchModes: Record<string, string> = {}
+    const typeToMode: Record<number, string> = {
+      0: 'equals',
+      1: 'contains',
+      2: 'regex',
+      3: 'starts_with',
+      4: 'ends_with',
+    }
     attrs.forEach((attr: any) => {
       const variableValue = attr.variableValue
         ? varibaleValueFormatSave(attr.variableValue.value)
@@ -117,7 +133,12 @@ function elementDirectoryFormatV1RecoverCommon(data: any) {
       if (!attr.checked) {
         attrObj.disable_keys.push(attr.name)
       }
+      // 将 attr.type 映射为 match_mode
+      if (attr.type && attr.type > 0) {
+        matchModes[attr.name] = typeToMode[attr.type] || 'equals'
+      }
     })
+    attrObj.match_modes = matchModes
     return attrObj
   })
 }

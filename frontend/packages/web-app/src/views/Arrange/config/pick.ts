@@ -82,27 +82,43 @@ export const PATTERN_RULES = [
     label: 'pickRules.regex',
     value: 2,
   },
-  // {
-  //   label: '开头为',
-  //   value: 3,
-  // },
-  // {
-  //   label: '结尾为',
-  //   value: 4,
-  // },
+  {
+    label: 'pickRules.starts_with',
+    value: 3,
+  },
+  {
+    label: 'pickRules.ends_with',
+    value: 4,
+  },
 ]
 
 export const PATTERN_RULES_TYPE = {
   0: ' = ',
   1: ' includes ',
   2: ' regex ',
-  // 3: ' startsWith ',
-  // 4: ' endsWith ',
+  3: ' startsWith ',
+  4: ' endsWith ',
 }
 
 export const PATTERN_RULES_UIA = [
   {
     label: 'pickRules.equal',
     value: 0,
+  },
+  {
+    label: 'pickRules.wildcard',
+    value: 1,
+  },
+  {
+    label: 'pickRules.regex',
+    value: 2,
+  },
+  {
+    label: 'pickRules.starts_with',
+    value: 3,
+  },
+  {
+    label: 'pickRules.ends_with',
+    value: 4,
   },
 ]

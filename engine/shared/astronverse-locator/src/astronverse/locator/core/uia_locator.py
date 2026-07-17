@@ -1,6 +1,8 @@
 import dataclasses
+import re
 import time
 from copy import deepcopy
+from enum import Enum
 from typing import Any, Optional, Union
 
 import pyautogui
@@ -15,6 +17,34 @@ from astronverse.locator.utils.window import (
     validate_window_rect,
 )
 from uiautomation import Control, ControlFromHandle
+
+
+class MatchMode(Enum):
+    """UIA 元素属性匹配模式"""
+    EQUALS = "equals"
+    CONTAINS = "contains"
+    STARTS_WITH = "starts_with"
+    ENDS_WITH = "ends_with"
+    REGEX = "regex"
+
+
+def _flexible_compare(expected: str, actual: str, mode: str) -> bool:
+    """根据匹配模式比较两个值（模块级纯函数，与 UIA 结构无关）"""
+    if not expected or not actual:
+        return expected == actual  # 空值回退到精确匹配
+    if mode == "contains":
+        return expected in actual
+    elif mode == "starts_with":
+        return actual.startswith(expected)
+    elif mode == "ends_with":
+        return actual.endswith(expected)
+    elif mode == "regex":
+        try:
+            return bool(re.search(expected, actual))
+        except re.error:
+            return False  # 无效正则视为不匹配
+    else:  # 默认 "equals"（包括未知模式）
+        return expected == actual
 
 
 class UIALocator(ILocator):
@@ -52,6 +82,7 @@ class UIANode:
     index: int = None  # 索引
     name: str = None
     value: str = None
+    match_modes: dict = None  # 每个属性的匹配模式: {"cls": "contains", "name": "regex"}
 
 
 class UIAEle:
@@ -153,7 +184,7 @@ class UIAFactory:
             return True
 
         for key in keys:
-            if key in node.disable_keys:
+            if key in (node.disable_keys or []):
                 continue
             v1 = getattr(node, key, None)
             v2 = getattr(uia_ele, key, None)
@@ -163,7 +194,10 @@ class UIAFactory:
                 v2 = str(v2)
             if not v1 and not v2:
                 continue
-            if v1 != v2:
+            # 支持灵活匹配模式：按属性配置的 match_mode，默认为 equals
+            match_modes = getattr(node, 'match_modes', None) or {}
+            mode = match_modes.get(key, "equals") if key != "index" else "equals"
+            if not _flexible_compare(v1, v2, mode):
                 return False
         return True
 
@@ -212,6 +246,7 @@ class UIAFactory:
                 index=path.get("index", None),
                 name=path.get("name", None),
                 value=path.get("value", None),
+                match_modes=path.get("match_modes", None),
             )
             for path in path_list
             if not path.get("similar_parent", None)
@@ -287,34 +322,37 @@ class UIAFactory:
                 index=path.get("index", None),
                 name=path.get("name", None),
                 value=path.get("value", None),
+                match_modes=path.get("match_modes", None),
             )
             for path in path_list
         ]
 
-        first_cls = node_list[0].cls if "cls" not in node_list[0].disable_keys else None
-        first_name = node_list[0].name if "name" not in node_list[0].disable_keys else None
-        first_app_name = app_name if app_name not in node_list[0].disable_keys else None
+        first_cls = node_list[0].cls if "cls" not in (node_list[0].disable_keys or []) else None
+        first_name = node_list[0].name if "name" not in (node_list[0].disable_keys or []) else None
+        first_app_name = app_name if app_name not in (node_list[0].disable_keys or []) else None
 
-        # 2. 获取所有可能的窗口句柄
+        # 获取根节点的匹配模式（默认 equals，向后兼容）
+        first_match_modes = node_list[0].match_modes or {}
+        cls_match_mode = first_match_modes.get("cls", "equals")
+        name_match_mode = first_match_modes.get("name", "equals")
+
+        # 2. 获取所有可能的窗口句柄（window.py 层已支持灵活匹配）
         root_handles = []
 
-        # 再尝试使用 find_window_handles_list 获取句柄列表
         try:
             handles_list = find_window_handles_list(
-                first_cls, first_name, app_name=first_app_name, picker_type=picker_type
+                first_cls, first_name, app_name=first_app_name, picker_type=picker_type,
+                cls_match_mode=cls_match_mode, name_match_mode=name_match_mode,
             )
             if handles_list:
                 root_handles.extend(handles_list)
         except Exception as e:
             logger.debug(f"find_window_handles_list 调用失败: {e}")
         if len(root_handles) == 0:
-            # 先尝试使用 find_window_by_enum_list 获取句柄列表
             try:
                 enum_handles = find_window_by_enum_list(
-                    first_cls,
-                    first_name,
-                    app_name=first_app_name,
-                    picker_type=picker_type,
+                    first_cls, first_name, app_name=first_app_name, picker_type=picker_type,
+                    cls_match_mode=cls_match_mode, name_match_mode=name_match_mode,
                 )
                 if enum_handles:
                     root_handles.extend(enum_handles)
@@ -431,28 +469,38 @@ class UIAFactory:
                 index=path.get("index", None),
                 name=path.get("name", None),
                 value=path.get("value", None),
+                match_modes=path.get("match_modes", None),
             )
             for path in path_list
         ]
 
-        first_cls = node_list[0].cls if node_list[0].cls not in node_list[0].disable_keys else None
-        first_name = node_list[0].name if node_list[0].name not in node_list[0].disable_keys else None
-        first_app_name = app_name if app_name not in node_list[0].disable_keys else None
+        first_cls = node_list[0].cls if "cls" not in (node_list[0].disable_keys or []) else None
+        first_name = node_list[0].name if "name" not in (node_list[0].disable_keys or []) else None
+        first_app_name = app_name if app_name not in (node_list[0].disable_keys or []) else None
 
-        # 2. 获取所有可能的窗口句柄
+        # 获取根节点的匹配模式（默认 equals，向后兼容）
+        first_match_modes = node_list[0].match_modes or {}
+        cls_match_mode = first_match_modes.get("cls", "equals")
+        name_match_mode = first_match_modes.get("name", "equals")
+
+        # 2. 获取所有可能的窗口句柄（window.py 层已支持灵活匹配）
         root_handles = []
 
-        # 再尝试使用 find_window_handles_list 获取句柄列表
         try:
-            handles_list = find_window_handles_list(first_cls, first_name, app_name=first_app_name)
+            handles_list = find_window_handles_list(
+                first_cls, first_name, app_name=first_app_name,
+                cls_match_mode=cls_match_mode, name_match_mode=name_match_mode,
+            )
             if handles_list:
                 root_handles.extend(handles_list)
         except Exception as e:
             logger.debug(f"find_window_handles_list 调用失败: {e}")
         if len(root_handles) == 0:
-            # 先尝试使用 find_window_by_enum_list 获取句柄列表
             try:
-                enum_handles = find_window_by_enum_list(first_cls, first_name, app_name=first_app_name)
+                enum_handles = find_window_by_enum_list(
+                    first_cls, first_name, app_name=first_app_name,
+                    cls_match_mode=cls_match_mode, name_match_mode=name_match_mode,
+                )
                 if enum_handles:
                     root_handles.extend(enum_handles)
             except Exception as e:
