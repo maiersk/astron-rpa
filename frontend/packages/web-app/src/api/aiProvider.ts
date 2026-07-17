@@ -49,24 +49,24 @@ export interface TestConnectionResult {
  * List all configured AI providers.
  */
 export async function getProviders(): Promise<ProviderResponse[]> {
-  const res = await http.get<ProviderResponse[]>(`${BASE}`)
-  return res.data || []
+  const res = await http.get<{ data: ProviderResponse[] }>(`${BASE}`)
+  return (res.data as any)?.data || res.data || []
 }
 
 /**
  * Create a new AI provider.
  */
 export async function createProvider(data: ProviderCreate): Promise<ProviderResponse> {
-  const res = await http.post<ProviderResponse>(`${BASE}`, data)
-  return res.data
+  const res = await http.post<{ data: ProviderResponse }>(`${BASE}`, data)
+  return (res.data as any)?.data || res.data
 }
 
 /**
  * Update an existing AI provider.
  */
 export async function updateProvider(id: number, data: ProviderUpdate): Promise<ProviderResponse> {
-  const res = await http.put<ProviderResponse>(`${BASE}/${id}`, data)
-  return res.data
+  const res = await http.put<{ data: ProviderResponse }>(`${BASE}/${id}`, data)
+  return (res.data as any)?.data || res.data
 }
 
 /**
@@ -80,6 +80,6 @@ export async function deleteProvider(id: number): Promise<void> {
  * Test connection to a provider.
  */
 export async function testProvider(id: number): Promise<TestConnectionResult> {
-  const res = await http.post<TestConnectionResult>(`${BASE}/${id}/test`)
-  return res.data
+  const res = await http.post<{ data: TestConnectionResult }>(`${BASE}/${id}/test`)
+  return (res.data as any)?.data || res.data
 }

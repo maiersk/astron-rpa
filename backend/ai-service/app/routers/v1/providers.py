@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.logger import get_logger
+from app.schemas import ResCode, StandardResponse
 from app.schemas.provider import ProviderCreate, ProviderResponse, ProviderUpdate
 from app.services.provider import ProviderService
 
@@ -51,23 +52,31 @@ def _provider_to_response(provider) -> ProviderResponse:
     )
 
 
-@router.get("", response_model=list[ProviderResponse])
+@router.get("")
 async def list_providers(db: AsyncSession = Depends(get_db)):
     """List all configured AI providers."""
     service = ProviderService(db)
     providers = await service.list_providers()
-    return [_provider_to_response(p) for p in providers]
+    return StandardResponse(
+        code=ResCode.SUCCESS,
+        msg="获取供应商列表成功",
+        data=[_provider_to_response(p) for p in providers],
+    )
 
 
-@router.post("", response_model=ProviderResponse)
+@router.post("")
 async def create_provider(data: ProviderCreate, db: AsyncSession = Depends(get_db)):
     """Create a new AI provider."""
     service = ProviderService(db)
     provider = await service.create_provider(data)
-    return _provider_to_response(provider)
+    return StandardResponse(
+        code=ResCode.SUCCESS,
+        msg="创建供应商成功",
+        data=_provider_to_response(provider),
+    )
 
 
-@router.put("/{provider_id}", response_model=ProviderResponse)
+@router.put("/{provider_id}")
 async def update_provider(
     provider_id: int,
     data: ProviderUpdate,
@@ -78,7 +87,11 @@ async def update_provider(
     provider = await service.update_provider(provider_id, data)
     if not provider:
         raise HTTPException(status_code=404, detail=f"Provider {provider_id} not found")
-    return _provider_to_response(provider)
+    return StandardResponse(
+        code=ResCode.SUCCESS,
+        msg="更新供应商成功",
+        data=_provider_to_response(provider),
+    )
 
 
 @router.delete("/{provider_id}")
@@ -88,7 +101,11 @@ async def delete_provider(provider_id: int, db: AsyncSession = Depends(get_db)):
     deleted = await service.delete_provider(provider_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Provider {provider_id} not found")
-    return {"success": True, "message": f"Provider {provider_id} deleted"}
+    return StandardResponse(
+        code=ResCode.SUCCESS,
+        msg=f"供应商 {provider_id} 已删除",
+        data={"id": provider_id},
+    )
 
 
 @router.post("/{provider_id}/test")
