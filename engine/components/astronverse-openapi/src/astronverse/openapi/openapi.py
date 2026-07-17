@@ -1,3 +1,5 @@
+import os
+
 from astronverse.actionlib import AtomicFormType, AtomicFormTypeMeta, DynamicsItem
 from astronverse.actionlib.atomic import atomicMg
 from astronverse.actionlib.types import PATH
@@ -526,5 +528,12 @@ class OpenApi:
 
         res = OpenapiIflytek.common_ocr(header_dict, files)
         if is_save:
-            utils.write_to_excel(dst_file, dst_file_name, header_dict, res)
+            # 保存为 TXT 文本文件
+            if not os.path.splitext(dst_file_name)[1]:
+                dst_file_name += ".txt"
+            os.makedirs(dst_file, exist_ok=True)
+            full_path = os.path.join(dst_file, dst_file_name)
+            with open(full_path, "w", encoding="utf-8") as f:
+                for item in res:
+                    f.write(item.get("图文识别结果", "") + "\n")
         return res

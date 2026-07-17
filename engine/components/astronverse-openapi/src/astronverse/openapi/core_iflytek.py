@@ -18,6 +18,26 @@ APPId = cfg.get("APP_ID", "")
 APISecret = cfg.get("API_SECRET", "")
 APIKey = cfg.get("API_KEY", "")
 
+# ---------------------------------------------------------------------------
+# Local OCR engine (PaddleOCR) – lazy-loaded singleton
+# ---------------------------------------------------------------------------
+_ocr_engine = None
+
+
+def _get_ocr_engine():
+    """Return a cached PaddleOCR instance, creating it on first call."""
+    global _ocr_engine
+    if _ocr_engine is None:
+        try:
+            from paddleocr import PaddleOCR  # noqa: F811
+        except ImportError:
+            raise BaseException(
+                AI_SERVER_ERROR,
+                "PaddleOCR 未安装，请运行: pip install paddleocr paddlepaddle",
+            )
+        _ocr_engine = PaddleOCR(lang="ch", use_textline_orientation=True)
+    return _ocr_engine
+
 
 class OcrRequests:
     """OCR请求封装"""
@@ -147,30 +167,27 @@ class OpenapiIflytek:
 
     @staticmethod
     def common_ocr(header_dict: dict, files: list) -> list:
-        results = []
+        """
+        本地通用文字识别（基于PaddleOCR），无需联网即可完成图片文字识别。
+
+        参数:
+            header_dict: 字段映射字典，如 {"Context": "图文识别结果"}
+            files: 待识别的图片文件路径列表
+
+        返回:
+            list[dict]: 每张图片的识别结果
+        """
+        ocr = _get_ocr_engine()
+        from PIL import Image as _PILImage
+        import numpy as _np
+        results: list[dict] = []
         for image in files:
-            with open(image, "rb") as f:
-                image_bytes = f.read()
-                image_info = base64.b64encode(image_bytes)
-            suffix = os.path.splitext(image)[1].lstrip(".").lower()
-            # 请求数据准备
-            body = {"encoding": suffix, "image": str(image_info, "UTF-8"), "status": 3}
-            url = "http://127.0.0.1:{}/api/rpa-ai-service/ocr/general".format(
-                atomicMg.cfg().get("GATEWAY_PORT") if atomicMg.cfg().get("GATEWAY_PORT") else "13159"
-            )
-            headers = {"content-type": "application/json"}
-            # 发起请求
-            ret = requests.request("POST", url, data=json.dumps(body), headers=headers)
-
-            # 请求结果处理
-            if ret.status_code != 200:
-                raise BaseException(AI_SERVER_ERROR, "ai服务器无响应或错误 {}".format(ret))
-
-            ret_dict = json.loads(base64.b64decode(ret.json()["payload"]["result"]["text"]).decode())
-            content = OpenapiIflytek.__analyse_ocr_result__(ret_dict)
-            ocr_result = {"Context": content}
+            _img = _PILImage.open(image).convert("RGB")
+            ocr_result = ocr.ocr(_np.array(_img))
+            content = OpenapiIflytek.__analyse_ocr_result__(ocr_result)
+            ocr_dict = {"Context": content}
             json_result = {}
-            for k, v in ocr_result.items():
+            for k, v in ocr_dict.items():
                 if not header_dict.get(k):
                     continue
                 json_result[header_dict[k]] = v
@@ -178,25 +195,47 @@ class OpenapiIflytek:
         return results
 
     @staticmethod
-    def __analyse_ocr_result__(data: dict) -> str:
+    def __analyse_ocr_result__(data: list | None) -> str:
         """
-        解析ocr返回的数据
+        解析PaddleOCR返回的数据，将检测到的文字按行重组为纯文本。
+
+        PaddleOCR 3.x 返回格式（传入numpy数组时）:
+            [OCRResult]  — paddlex.inference.pipelines.ocr.result.OCRResult 对象
+            OCRResult 属性:
+              - rec_texts: list[str]  识别文字列表
+              - dt_polys:  list[list] 检测框多边形坐标
+              - rec_scores: list[float] 置信度
+
+        Y坐标差值小于10像素的文本框视为同一行，否则插入换行符。
         """
-        try:
-            lines = data["pages"][0]["lines"]
-        except Exception:
+        if data is None or len(data) == 0:
             return ""
-        # 处理单元格行数据，算出距离原点的位置并重组数据
+        result = data[0]
+        # OCRResult 是 dict 子类，统一用 .get()
+        rec_texts = list(result.get("rec_texts", []) or [])
+        dt_polys = list(result.get("dt_polys", []) or [])
+
+        if len(rec_texts) == 0:
+            return ""
+
+        # 将 (文字, Y坐标) 配对并按 Y 排序
+        items = []
+        for i, text in enumerate(rec_texts):
+            poly = dt_polys[i] if i < len(dt_polys) else None
+            if poly is not None and len(poly) > 0:
+                y = poly[0][1]
+            else:
+                y = 0
+            items.append((y, text))
+        items.sort(key=lambda x: x[0])
+
         content = ""
         y = 0
         first = True
-        for line in lines:
-            if line.get("words") and line.get("coord"):
-                # 如果两次line的y差值小于10，则认为是一行数据
-                if not (y - 10 < line["coord"][0]["y"] < y + 10) and first is False:
-                    content += "\n"
-                for word in line["words"]:
-                    content += word.get("content", "")
-                first = False
-                y = line["coord"][0]["y"]
+        for current_y, text in items:
+            if not first and not (y - 10 < current_y < y + 10):
+                content += "\n"
+            content += text
+            first = False
+            y = current_y
         return content
