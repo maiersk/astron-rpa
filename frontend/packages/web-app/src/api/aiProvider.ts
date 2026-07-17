@@ -3,7 +3,7 @@
  */
 import http from './http'
 
-const BASE = '/rpa-ai-service/v1/providers'
+const BASE = '/api/rpa-ai-service/v1/providers'
 
 export interface ProviderCreate {
   name: string
