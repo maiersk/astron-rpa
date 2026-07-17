@@ -24,7 +24,7 @@ import { ModalReplacementResolver } from './src/plugins/component-resolver'
 
 const baseSrc = fileURLToPath(new URL('./src', import.meta.url))
 const basePublic = fileURLToPath(new URL('../../public', import.meta.url))
-const nodeModules = fileURLToPath(new URL('./node_modules', import.meta.url))
+const nodeModules = fileURLToPath(new URL('../../node_modules', import.meta.url))
 
 const sentryConfig: SentryVitePluginOptions = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
