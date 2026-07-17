@@ -18,13 +18,14 @@ PROMPT_URL = "http://127.0.0.1:{}/api/rpa-ai-service/v1/chat/prompt".format(
 DEFAULT_MODEL = "xopdeepseekv32"
 
 
-def chat_streamable(messages: Any, model: str = DEFAULT_MODEL):
+def chat_streamable(messages: Any, model: str = DEFAULT_MODEL, provider_id=None):
     """
     调用远端大模型
 
     :param
     messages: 历史问题
     model: 模型id
+    provider_id: AI供应商ID（可选，用于指定使用哪个供应商）
 
     - example
         inputs = [
@@ -36,8 +37,15 @@ def chat_streamable(messages: Any, model: str = DEFAULT_MODEL):
 
     """
     chat_json = {"messages": messages, "model": model, "stream": True}
+    if provider_id is not None:
+        chat_json["provider_id"] = provider_id
 
-    response = requests.post(API_URL, json=chat_json)
+    # Build URL with optional provider_id query param
+    url = API_URL
+    if provider_id is not None:
+        url = f"{API_URL}?provider_id={provider_id}"
+
+    response = requests.post(url, json=chat_json)
     if response.status_code == 200:
         client = sseclient.SSEClient(response)  # type: ignore
         for event in client.events():
@@ -49,7 +57,7 @@ def chat_streamable(messages: Any, model: str = DEFAULT_MODEL):
         raise BaseException(LLM_NO_RESPONSE_ERROR.format(response), "")
 
 
-def chat_normal(user_input, system_input="", model=DEFAULT_MODEL):
+def chat_normal(user_input, system_input="", model=DEFAULT_MODEL, provider_id=None):
     """构建请求的 payload"""
     data = {
         "model": model,  # 选择大模型，替换为实际模型标识
@@ -59,10 +67,16 @@ def chat_normal(user_input, system_input="", model=DEFAULT_MODEL):
         ],
         "stream": False,
     }
+    if provider_id is not None:
+        data["provider_id"] = provider_id
+
+    url = API_URL
+    if provider_id is not None:
+        url = f"{API_URL}?provider_id={provider_id}"
 
     try:
         # 发送 API 请求
-        response = requests.post(API_URL, json=data)
+        response = requests.post(url, json=data)
         response.raise_for_status()  # 检查请求是否成功
 
         # 返回模型生成的回复
@@ -86,17 +100,23 @@ def chat_normal(user_input, system_input="", model=DEFAULT_MODEL):
         return None
 
 
-def chat_prompt(prompt_type, params, model=DEFAULT_MODEL):
+def chat_prompt(prompt_type, params, model=DEFAULT_MODEL, provider_id=None):
     """chat_prompt"""
     data = {
         "model": model,  # 选择大模型，替换为实际模型标识
         "prompt_type": prompt_type,
         "params": params,
     }
+    if provider_id is not None:
+        data["provider_id"] = provider_id
+
+    url = PROMPT_URL
+    if provider_id is not None:
+        url = f"{PROMPT_URL}?provider_id={provider_id}"
 
     try:
         # 发送 API 请求
-        response = requests.post(PROMPT_URL, json=data)
+        response = requests.post(url, json=data)
         response.raise_for_status()  # 检查请求是否成功
 
         # 返回模型生成的回复

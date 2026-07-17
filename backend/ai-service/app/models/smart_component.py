@@ -45,6 +45,8 @@ class SmartChatRequest(BaseModel):
     currentCode: Optional[str] = None
     elements: Optional[list[SmartElementInfo]] = None
     chatHistory: Optional[list[SmartChatHistoryItem]] = None
+    provider_id: Optional[int] = None  # 可选：指定 AI 供应商
+    model: Optional[str] = None  # 可选：覆盖模型选择
 
 
 class SmartChatResponse(BaseModel):

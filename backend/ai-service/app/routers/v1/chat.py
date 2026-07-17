@@ -1,19 +1,18 @@
 import json
+from typing import Optional
 from urllib.parse import urljoin
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
 from app.dependencies.points import PointChecker, PointsContext
+from app.dependencies.provider import ProviderContext, ProviderResolver
 from app.logger import get_logger
 from app.schemas import ResCode, StandardResponse
 from app.schemas.chat import ChatCompletionParam, ChatPromptParam
 from app.services.chat import chat_completions
 from app.services.point import PointTransactionType
 from app.utils.prompt import format_prompt, get_available_prompts, prompt_dict
-
-API_KEY = get_settings().AICHAT_API_KEY
-API_ENDPOINT = urljoin(get_settings().AICHAT_BASE_URL, "chat/completions")
 
 logger = get_logger(__name__)
 
@@ -26,11 +25,14 @@ router = APIRouter(
 @router.post("/completions")
 async def chat(
     params: ChatCompletionParam,
+    provider_id: Optional[int] = Query(default=None, description="Optional AI provider ID"),
+    provider: ProviderContext = Depends(ProviderResolver("chat")),
     points_context: PointsContext = Depends(
         PointChecker(get_settings().AICHAT_POINTS_COST, PointTransactionType.AICHAT_COST),
     ),
 ):
-    response = await chat_completions(params, API_KEY, API_ENDPOINT)
+    endpoint = urljoin(provider.base_url + "/", "chat/completions")
+    response = await chat_completions(params, provider.api_key, endpoint)
 
     # 处理成功，扣除积分，返回响应
     await points_context.deduct_points()
@@ -40,6 +42,8 @@ async def chat(
 @router.post("/prompt")
 async def chat_prompt(
     params: ChatPromptParam,
+    provider_id: Optional[int] = Query(default=None, description="Optional AI provider ID"),
+    provider: ProviderContext = Depends(ProviderResolver("chat")),
     points_context: PointsContext = Depends(
         PointChecker(get_settings().AICHAT_POINTS_COST, PointTransactionType.AICHAT_COST),
     ),
@@ -75,8 +79,8 @@ async def chat_prompt(
     logger.info(f"Request data: {data}")
 
     chat_model = ChatCompletionParam.model_validate(data)
-    response = await chat_completions(chat_model, API_KEY, API_ENDPOINT)
-    # logger.info("response: %s", response)
+    endpoint = urljoin(provider.base_url + "/", "chat/completions")
+    response = await chat_completions(chat_model, provider.api_key, endpoint)
 
     await points_context.deduct_points()
 

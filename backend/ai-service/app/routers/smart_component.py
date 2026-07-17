@@ -1,7 +1,9 @@
 import json
+from urllib.parse import urljoin
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.dependencies.provider import ProviderContext, ProviderResolver
 from app.models.smart_component import SmartChatRequest, SmartChatResponse, SmartElementInfo
 from app.schemas.chat import ChatCompletionParam
 from app.services.chat import chat_completions
@@ -11,6 +13,9 @@ router = APIRouter(
     prefix="/smart",
     tags=["智能组件服务"],
 )
+
+# Fallback model when no provider is configured
+DEFAULT_FALLBACK_MODEL = "maas/deepseek-v3.2"
 
 
 def build_messages(request: SmartChatRequest) -> list[dict]:
@@ -76,30 +81,42 @@ def build_messages(request: SmartChatRequest) -> list[dict]:
 
 
 @router.post("/chat/stream")
-async def smart_chat_stream(request: SmartChatRequest):
+async def smart_chat_stream(
+    request: SmartChatRequest,
+    provider: ProviderContext = Depends(ProviderResolver("chat")),
+):
+    # Use provider's default model or the request-specified model, falling back to hardcoded default
+    model = request.model or provider.default_model or DEFAULT_FALLBACK_MODEL
+
     llm_params = ChatCompletionParam(
-        # model='claude-4.5-sonnet',
-        model="maas/deepseek-v3.2",
+        model=model,
         stream=True,
         temperature=0.15,
         max_tokens=8192,
         messages=build_messages(request),
     )
 
-    return await chat_completions(llm_params)
+    endpoint = urljoin(provider.base_url + "/", "chat/completions")
+    return await chat_completions(llm_params, provider.api_key, endpoint)
 
 
 @router.post("/chat", response_model=SmartChatResponse)
-async def smart_chat(request: SmartChatRequest):
+async def smart_chat(
+    request: SmartChatRequest,
+    provider: ProviderContext = Depends(ProviderResolver("chat")),
+):
+    # Use provider's default model or the request-specified model, falling back to hardcoded default
+    model = request.model or provider.default_model or DEFAULT_FALLBACK_MODEL
+
     llm_params = ChatCompletionParam(
-        # model='claude-4.5-sonnet',
-        model="maas/deepseek-v3.2",
+        model=model,
         stream=False,
         temperature=0.15,
         max_tokens=8192,
         messages=build_messages(request),
     )
 
-    chat_result = await chat_completions(llm_params)
+    endpoint = urljoin(provider.base_url + "/", "chat/completions")
+    chat_result = await chat_completions(llm_params, provider.api_key, endpoint)
 
     return SmartChatResponse(data=json.loads(chat_result.body), code=200, success=True)

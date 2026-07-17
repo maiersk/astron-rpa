@@ -10,7 +10,7 @@ from app.logger import get_logger
 from app.middlewares.tracing import RequestTracingMiddleware
 from app.redis_op import close_redis_pool, init_redis_pool
 from app.routers import computer_use, jfbym, ocr, smart_component
-from app.routers.v1 import chat, models
+from app.routers.v1 import chat, models, providers
 
 # Ensure configuration is loaded
 settings = get_settings()
@@ -39,6 +39,7 @@ app.include_router(models.router, prefix="/v1")
 app.include_router(jfbym.router)
 app.include_router(smart_component.router)
 app.include_router(computer_use.router)
+app.include_router(providers.router, prefix="/v1")
 
 app.add_middleware(RequestTracingMiddleware)
 

@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 
 import About from './components/about.vue'
+import AiProviderManage from './components/aiProvider/index.vue'
 import ApiKeyManage from './components/apiKeyManage/index.vue'
 import CommonSetting from './components/commonSetting/index.vue'
 // import MsgNotify from './components/msgNotify.vue'
@@ -53,6 +54,12 @@ export const menuConfig: MenuItem[] = [
     icon: 'api-key',
     name: 'apiKeyMg',
     component: ApiKeyManage,
+  },
+  {
+    key: 'aiProvider',
+    icon: 'robot',
+    name: 'aiProviderMg',
+    component: AiProviderManage,
   },
   {
     key: 'voucher',

@@ -40,6 +40,8 @@ const limitTurns = Number(targetInfo.get('max_turns')) || 20
 const presetList = targetInfo.get('questions')?.split('$-$') || []
 // 对话模型
 const model = targetInfo.get('model')
+// AI provider ID (for custom provider selection)
+const providerId = targetInfo.get('provider_id') ? Number(targetInfo.get('provider_id')) : undefined
 const replyBaseData = JSON.parse(targetInfo.get('reply') || '{}') ?? {}
 // 交互类型 multi:多轮对话,file:知识问答
 const chatType = filePath ? 'file' : 'multi'
@@ -168,8 +170,11 @@ function createSSE(url: string, query: string) {
     ...(model ? { model } : null),
   }
 
+  // Attach provider_id as query param if specified
+  const targetUrl = providerId ? `${url}?provider_id=${providerId}` : url
+
   controller = sseRequest.post(
-    url,
+    targetUrl,
     queryData,
     (res) => {
       console.log('res', res)

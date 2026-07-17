@@ -35,4 +35,8 @@ export interface MessageInput {
 
   elements?: any[]
   chatHistory?: Message[]
+
+  // AI provider selection
+  provider_id?: number
+  model?: string
 }

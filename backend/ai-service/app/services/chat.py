@@ -1,15 +1,9 @@
-from urllib.parse import urljoin
-
 import httpx
 from fastapi import HTTPException
 from fastapi.responses import Response, StreamingResponse
 
-from app.config import get_settings
 from app.logger import get_logger
 from app.schemas.chat import ChatCompletionParam
-
-API_KEY = get_settings().AICHAT_API_KEY
-API_ENDPOINT = urljoin(get_settings().AICHAT_BASE_URL, "chat/completions")
 
 logger = get_logger(__name__)
 
@@ -21,7 +15,7 @@ long_timeout = httpx.Timeout(
 )
 
 
-async def chat_completions(params: ChatCompletionParam, key: str = API_KEY, endpoint: str = API_ENDPOINT):
+async def chat_completions(params: ChatCompletionParam, key: str, endpoint: str):
     logger.info("Processing chat completion request...")
     logger.info(f"Request params: {params}")
     # 构造请求参数
